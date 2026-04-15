@@ -1,10 +1,19 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
 
-// Initialize Supabase
-const { supabase } = require('../backend/config/firebase');
+// Supabase setup
+const { createClient } = require('@supabase/supabase-js');
 
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('ERROR: Missing SUPABASE_URL or SUPABASE_KEY');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Routes
 const repoRoutes = require('../backend/routes/repoRoutes');
 const commentRoutes = require('../backend/routes/commentRoutes');
 
@@ -12,22 +21,30 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: '*',
   credentials: true
 }));
 app.use(express.json());
 
-// Routes
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    app: 'RepoAcademy API',
+    supabaseConnected: !!supabase
+  });
+});
+
+// API Routes
 app.use('/api', repoRoutes);
 app.use('/api', commentRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => res.json({ status: 'ok', app: 'Repolearn API' }));
-
-// Global error handler
+// Error handling
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+  console.error('Error:', err);
+  res.status(err.status || 500).json({ 
+    error: err.message || 'Internal Server Error' 
+  });
 });
 
 // Export for Vercel serverless
