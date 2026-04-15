@@ -1,25 +1,91 @@
 import axios from 'axios';
 
-// Use environment variable or fallback to localhost
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Determine the API URL based on environment
+const getBaseURL = () => {
+  // For development
+  if (import.meta.env.MODE === 'development') {
+    return import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  }
+  
+  // For production (Vercel)
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+  const host = typeof window !== 'undefined' ? window.location.host : '';
+  
+  if (host) {
+    return `${protocol}//${host}/api`;
+  }
+  
+  return '/api';
+};
+
+const baseURL = getBaseURL();
+
+console.log('API Base URL:', baseURL, 'Environment:', import.meta.env.MODE);
 
 const api = axios.create({
   baseURL,
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: false
 });
 
-// ─── Repo APIs ───────────────────────────────────────────
-export const submitRepo = (url, category, subcategory) => api.post('/repo', { url, category, subcategory });
-export const fetchRepos = (params = {}) => api.get('/repos', { params });
-export const fetchRepoById = (id) => api.get(`/repo/${id}`);
-export const deleteRepo = (id) => api.delete(`/repo/${id}`);
+// Request interceptor for debugging
+api.interceptors.request.use(
+  (config) => {
+    console.log(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+    return config;
+  },
+  (error) => {
+    console.error('Request error:', error);
+    return Promise.reject(error);
+  }
+);
 
-// ─── Comment APIs ─────────────────────────────────────────
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response) => {
+    console.log(`API Response: ${response.status} ${response.config.url}`);
+    return response;
+  },
+  (error) => {
+    console.error('API Error:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      url: error.config?.url
+    });
+    return Promise.reject(error);
+  }
+);
+
+// ─── Repo APIs ───────────────────────────────────────────
+export const submitRepo = (url, category, subcategory) => 
+  api.post('/repo', { url, category, subcategory });
+
+export const fetchRepos = (params = {}) => 
+  api.get('/repos', { params });
+
+export const fetchRepoById = (id) => 
+  api.get(`/repo/${id}`);
+
+export const deleteRepo = (id) => 
+  api.delete(`/repo/${id}`);
+
+// ─── Comment APIs ─────────────────────────────────────
 export const fetchComments = (repoId, sort = 'newest') =>
   api.get(`/repo/${repoId}/comments`, { params: { sort } });
-export const addComment = (repoId, data) => api.post(`/repo/${repoId}/comment`, data);
-export const likeComment = (commentId) => api.put(`/comment/${commentId}/like`);
-export const deleteComment = (commentId) => api.delete(`/comment/${commentId}`);
+
+export const addComment = (repoId, data) => 
+  api.post(`/repo/${repoId}/comment`, data);
+
+export const likeComment = (commentId) => 
+  api.put(`/comment/${commentId}/like`);
+
+export const deleteComment = (commentId) => 
+  api.delete(`/comment/${commentId}`);
+
+// ─── Health Check ────────────────────────────────────
+export const checkHealth = () => 
+  api.get('/health');
 
 export default api;

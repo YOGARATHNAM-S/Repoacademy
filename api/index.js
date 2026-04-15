@@ -9,41 +9,70 @@ const supabaseKey = process.env.SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('ERROR: Missing SUPABASE_URL or SUPABASE_KEY');
+  console.error('SUPABASE_URL:', supabaseUrl ? 'SET' : 'NOT SET');
+  console.error('SUPABASE_KEY:', supabaseKey ? 'SET' : 'NOT SET');
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl || '', supabaseKey || '');
 
 // Routes
-const repoRoutes = require('../backend/routes/repoRoutes');
-const commentRoutes = require('../backend/routes/commentRoutes');
+let repoRoutes, commentRoutes;
+
+try {
+  repoRoutes = require('../backend/routes/repoRoutes');
+  commentRoutes = require('../backend/routes/commentRoutes');
+} catch (err) {
+  console.error('Error loading routes:', err.message);
+}
 
 const app = express();
 
 // Middleware
 app.use(cors({
-  origin: '*',
-  credentials: true
+  origin: ['https://repoacademy.vercel.app', 'http://localhost:3000', 'http://localhost:5000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     app: 'RepoAcademy API',
-    supabaseConnected: !!supabase
+    supabaseConnected: !!(supabaseUrl && supabaseKey),
+    timestamp: new Date().toISOString()
   });
 });
 
 // API Routes
-app.use('/api', repoRoutes);
-app.use('/api', commentRoutes);
+if (repoRoutes) {
+  app.use('/', repoRoutes);
+}
+if (commentRoutes) {
+  app.use('/', commentRoutes);
+}
 
-// Error handling
+// 404 handler
+app.use((req, res) => {
+  console.warn(`404 Not Found: ${req.method} ${req.path}`);
+  res.status(404).json({ 
+    error: 'Not Found',
+    path: req.path,
+    method: req.method
+  });
+});
+
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({ 
-    error: err.message || 'Internal Server Error' 
+    error: err.message || 'Internal Server Error',
+    status: err.status || 500,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });
 
