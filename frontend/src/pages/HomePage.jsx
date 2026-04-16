@@ -74,9 +74,15 @@ export default function HomePage() {
       if (filterCategory !== 'All') params.category = filterCategory;
       if (filterSubcategory !== 'All') params.subcategory = filterSubcategory;
       const { data } = await fetchRepos(params);
-      setRepos(data.repos);
+      const normalizedRepos = Array.isArray(data?.repos)
+        ? data.repos
+        : Array.isArray(data)
+          ? data
+          : [];
+      setRepos(normalizedRepos);
     } catch (err) {
       console.error('Failed to load repos:', err);
+      setRepos([]);
     } finally {
       setLoading(false);
     }

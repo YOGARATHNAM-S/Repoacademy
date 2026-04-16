@@ -194,10 +194,17 @@ export default function CommentList({ repoId }) {
     setLoading(true);
     try {
       const { data } = await fetchComments(repoId, sort);
-      setComments(data.comments);
-      setCount(data.count);
+      const normalizedComments = Array.isArray(data?.comments)
+        ? data.comments
+        : Array.isArray(data)
+          ? data
+          : [];
+      setComments(normalizedComments);
+      setCount(Number.isFinite(data?.count) ? data.count : normalizedComments.length);
     } catch {
       toast.error('Failed to load comments');
+      setComments([]);
+      setCount(0);
     } finally {
       setLoading(false);
     }
