@@ -5,13 +5,16 @@ import commentRoutes from './routes/commentRoutes.js';
 
 const app = express();
 
+// Vercel routePrefix can strip '/api' before forwarding to this app.
+const API_PREFIX = process.env.VERCEL ? '' : '/api';
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use('/api', repoRoutes);
-app.use('/api', commentRoutes);
+app.use(API_PREFIX, repoRoutes);
+app.use(API_PREFIX, commentRoutes);
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', app: 'Repolearn API' }));
